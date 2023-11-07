@@ -1,64 +1,106 @@
-from openpyxl import load_workbook
-from datetime import datetime, timedelta
+import pandas as pd
+from datetime import datetime,timedelta
+
+# Load the Excel file and specify the sheet name
+file_path = "attendance.xlsx"
+
+xls = pd.ExcelFile(file_path)
+# Get a list of sheet names in the Excel file
+sheet_names = xls.sheet_names
+
+# Get today's date
+today = datetime.today().date()
+
+# Initialize a dictionary to store working hours for each sheet and date
+data = {
+    'Name': [],
+}
+
+
+def remove_data(df,sheet_name):
+    df = pd.read_excel(file_path)
+
+    # Convert the 'Date' column to datetime
+    df['Date'] = pd.to_datetime(df['Date'])
+
+    # Calculate the date 7 days ago from the current date
+    seven_days_ago = datetime.now() - timedelta(days=5)
+
+    # Filter the DataFrame to remove entries older than 7 days
+    df = df[df['Date'] >= seven_days_ago]
+
+    # Format the 'Date' column to '%Y-%m-%d' format
+    df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
+
+    # Save the updated DataFrame back to the same Excel file, overwriting the original data
+    with pd.ExcelWriter(file_path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+        df.to_excel(writer, sheet_name=sheet_name, index=False)
 
 
 
-def calculate_working_hours(sheet):
-    data = {}
-    for row in sheet.iter_rows(values_only=True):
-        if row and len(row) >= 4:
-            action, date, time, working_hours = row
-            if action == 'Check-In':
-                checkin = datetime.combine(date, time)
-            elif action == 'Check-Out':
-                checkout = datetime.combine(date, time)
-                if checkin:
-                    date_str = date.date().strftime('%Y-%m-%d')
-                    if date_str not in data:
-                        data[date_str] = {}
-                    if sheet.title not in data[date_str]:
-                        data[date_str][sheet.title] = working_hours
-                    else:
-                        data[date_str][sheet.title] += working_hours
-                    checkin = None
-    return data
+# Iterate through each sheet and preprocess the data
+for sheet_name in sheet_names:
+    if sheet_name == "Attendance":
+        continue  # Skip the "Attendance" sheet
 
-def is_7_days_old(date):
-    current_date = datetime.now().date()
-    date_date = date.date()  # Extract the date part
-    return (current_date - date_date).days >= 7
+    
 
-def delete_old_data_from_sheet(sheet):
-    rows_to_delete = []
+    df = pd.read_excel(file_path, sheet_name=sheet_name)
+    
+    remove_data(df, sheet_name)
 
-    for row in sheet.iter_rows(min_row=2, values_only=True):
-        if row and len(row) >= 2:  # Check for valid date and time columns
-            date = row[1]  # Date is in the second column (column 'B')
-            if date is not None:
-                if is_7_days_old(date):
-                    rows_to_delete.append(row)
+    working_hours_per_date = {}
 
-    for row_data in rows_to_delete:
-        # Find the row number and delete the entire row
-        row_index = sheet.cell(row=2, column=1).row  # Assuming the header is in row 1
-        sheet.delete_rows(row_index)
+    df['Datetime'] = pd.to_datetime(df['Date'] + ' ' + df['Time'])
 
-def main():
-    spreadsheet_name = 'attendance.xlsx'
-    workbook = load_workbook(spreadsheet_name)
+    date = datetime.now().strftime('%Y-%m-%d')
 
-    # Calculate working hours and organize data
-    final_count_data = calculate_working_hours(workbook.active)
+    date_filtered_df = df[df['Date'] == date]
 
-    # Delete old data from individual sheets
-    for sheet_name in workbook.sheetnames:
-        if sheet_name == 'FinalCount':
-            continue
-        sheet = workbook[sheet_name]
-        delete_old_data_from_sheet(sheet)
+    print(date_filtered_df.empty)
+    if date_filtered_df.empty:
+        working_hours_per_date[date] = 0
+    else:
+        check_in_time = None
+        check_out_time = None
+        break_start_time = None
+        break_end_time = None
+        working_hours = 0
+        
+        for index, row in date_filtered_df.iterrows():
+            if row['Action'] == "Check-In":
+                check_in_time = row['Datetime']
+            elif row['Action'] == "Check-Out":
+                check_out_time = row['Datetime']
+            elif row['Action'] == "Break Start":
+                break_start_time = row['Datetime']
+            elif row['Action'] == "Break End":
+                break_end_time = row['Datetime']
+                working_hours += (break_end_time - break_start_time).total_seconds()
 
-    # Save the modified workbook
-    workbook.save(spreadsheet_name)
+        working_hours = (check_out_time - check_in_time).total_seconds() - working_hours
+        working_hours = working_hours / 3600
+        working_hours_per_date[date] = working_hours
 
-if __name__ == '__main__':
-    main()
+    data['Name'].append(sheet_name)
+    if date not in data:
+        data[date] = []
+    data[date].append(working_hours_per_date.get(date, 0))
+
+
+print(data)
+# Create the DataFrame
+df = pd.DataFrame(data)
+
+# Check if today's date already exists in the "Attendance" sheet
+if today in df.columns:
+    # Update the data for today without overwriting
+    existing_data = pd.read_excel(file_path, sheet_name="Attendance")
+    existing_data[today] = df[today]
+    df = existing_data
+
+# Append the DataFrame as a new sheet named "Attendance"
+with pd.ExcelWriter(file_path, mode='a', engine='openpyxl', if_sheet_exists='replace') as writer:
+    df.to_excel(writer, sheet_name="Attendance", index=False)
+
+print(f"Data for {today} has been appended to the 'Attendance' sheet.")

@@ -2,7 +2,7 @@ import requests
 import time
 
 # Replace with your Flask application's URL
-BASE_URL = ' https://b790-2401-4900-1c80-56af-cbfd-97a3-873b-cba3.ngrok-free.app'
+BASE_URL = 'https://6349-2401-4900-1f3e-1532-216d-24b3-4bca-37f4.ngrok-free.app'
 
 # Replace with your actual user ID
 USER_ID = 'U03KHL4QCCA'
@@ -30,27 +30,27 @@ def progress_bar(duration):
 # Test /checkin command
 checkin_response = send_slack_command('/checkin')
 print("/checkin Response:", checkin_response.text)
-progress_bar(40)  # Sleep for 30 seconds
+# progress_bar(40)  # Sleep for 30 seconds
 
 # Test /breakstart command
 breakstart_response = send_slack_command('/breakstart')
 print("/breakstart Response:", breakstart_response.text)
-progress_bar(30)  # Sleep for 30 seconds
+# progress_bar(10)  # Sleep for 30 seconds
 
 # Test /breakend command
 breakend_response = send_slack_command('/breakend')
 print("/breakend Response:", breakend_response.text)
-progress_bar(30)  # Sleep for 30 seconds
+# progress_bar(5)  # Sleep for 30 seconds
 
 # Test /breakstart command
 breakstart_response = send_slack_command('/breakstart')
 print("/breakstart Response:", breakstart_response.text)
-progress_bar(30)  # Sleep for 30 seconds
+# progress_bar(10)  # Sleep for 30 seconds
 
 # Test /breakend command
 breakend_response = send_slack_command('/breakend')
 print("/breakend Response:", breakend_response.text)
-progress_bar(30)  # Sleep for 30 seconds
+# progress_bar(30)  # Sleep for 30 seconds
 
 # Test /checkout command
 checkout_response = send_slack_command('/checkout')
